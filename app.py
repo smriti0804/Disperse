@@ -5,7 +5,7 @@ from decimal import Decimal
 import json
 
 # Database config (USE ENV VARIABLES IN PRODUCTION)
-DATABASE_URL = "postgresql://smriti:14IoOzwofyHsi1RhXlnC2g@transaction-flow-16380.j77.aws-ap-south-1.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full"
+DATABASE_URL = "postgresql://smriti:14IoOzwofyHsi1RhXlnC2g@transaction-flow-16380.j77.aws-ap-south-1.cockroachlabs.cloud:26257/defaultdb?sslmode=require"
 TABLE_NAME = "erc20_transfers"
 DISPERSE_TABLE = "disperse"
 DISPERSE_CONTRACT = "0xd152f549545093347a162dce210e7293f1452150".lower()
