@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Flow Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .address {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+
+        .amount {
+            font-weight: bold;
+            color: #667eea;
+            text-align: right;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Transaction Flow Tracer</h1>
+            <p class="subtitle">Analyze ERC20 token transfers done by disperse contract </p>
+        </div>
+
+        <div class="search-box">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="addressInput" 
+                    placeholder="Enter Ethereum address (0x...)"
+                    autocomplete="off"
+                >
+                <button id="traceBtn" onclick="traceAddress()">Trace</button>
+            </div>
+            <div class="error" id="errorMsg"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Analyzing transaction flow...</div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <div class="section" id="disperseSection">
+                <h2 class="section-title">💸 Disperse Beneficiaries</h2>
+                <div class="table-container" id="disperseTable"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function traceAddress() {
+            const address = document.getElementById('addressInput').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const traceBtn = document.getElementById('traceBtn');
+
+            errorMsg.classList.remove('show');
+            results.classList.remove('show');
+
+            if (!address) {
+                showError('Please enter an address');
+                return;
+            }
+
+            if (!address.startsWith('0x')) {
+                showError('Address must start with 0x');
+                return;
+            }
+
+            loading.classList.add('show');
+            traceBtn.disabled = true;
+
+            try {
+                const response = await fetch('/trace', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ address })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to trace address');
+                }
+
+                displayResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loading.classList.remove('show');
+                traceBtn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+        }
+
+        function displayResults(data) {
+            if (!data) {
+                showError('No data received from server');
+                return;
+            }
+            displayStats(data.stats || {});
+            displayDisperseBeneficiaries(data.disperse_beneficiaries || {});
+            document.getElementById('results').classList.add('show');
+        }
+
+        function displayStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            const disperseTransactions = stats?.disperse_transactions || 0;
+            const disperseBeneficiaries = stats?.disperse_beneficiaries || 0;
+            const totalDisperseAmount = stats?.total_disperse_amount || 0;
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${disperseTransactions}</div>
+                    <div class="stat-label">Disperse Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${disperseBeneficiaries}</div>
+                    <div class="stat-label">Disperse Beneficiaries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatNumber(totalDisperseAmount)}</div>
+                    <div class="stat-label">Total Disperse Amount</div>
+                </div>
+            `;
+        }
+
+        function displayDisperseBeneficiaries(beneficiaries) {
+            const container = document.getElementById('disperseTable');
+            
+            if (!beneficiaries || Object.keys(beneficiaries).length === 0) {
+                container.innerHTML = '<div class="empty-state">No disperse beneficiaries found</div>';
+                return;
+            }
+
+            const sorted = Object.entries(beneficiaries).sort((a, b) => b[1] - a[1]);
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Beneficiary Address</th>
+                            <th style="text-align: right;">Amount Received</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            sorted.forEach(([address, amount]) => {
+                html += `
+                    <tr>
+                        <td class="address">${address}</td>
+                        <td class="amount">${formatNumber(amount)}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(num);
+        }
+
+        document.getElementById('addressInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                traceAddress();
+            }
+        });
+    </script>
+</body>
+</html>
